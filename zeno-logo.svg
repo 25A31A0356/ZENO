@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="zenoGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="50%" stop-color="#3b82f6" />
+      <stop offset="100%" stop-color="#8b5cf6" />
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="42" stroke="url(#zenoGlow)" stroke-width="4" stroke-dasharray="180 30" />
+  <circle cx="50" cy="50" r="28" fill="#151821" stroke="#00f0ff" stroke-width="2" />
+  <path d="M40 38 L60 38 L40 62 L60 62" stroke="#00f0ff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="50" cy="50" r="4" fill="#00f0ff" />
+</svg>
