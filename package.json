@@ -1,0 +1,29 @@
+{
+  "name": "zeno",
+  "version": "1.0.0",
+  "description": "ZENO - Physical AI Voice Assistant Web Control Center & Monitoring Dashboard",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently -k -p \"[{name}]\" -n \"BACKEND,FRONTEND\" -c \"cyan.bold,green.bold\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "build": "npm run build:backend && npm run build:frontend",
+    "start": "cd backend && npm run start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  },
+  "keywords": [
+    "zeno",
+    "ai-assistant",
+    "esp32",
+    "voice-assistant",
+    "dashboard",
+    "iot"
+  ],
+  "author": "ZENO Team",
+  "license": "MIT"
+}

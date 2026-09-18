@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#0c0e12] text-slate-100 antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Custom modern dark scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0c0e12;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #2a3142;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3b82f6;
+  }
+}
+
+@layer components {
+  .zeno-card {
+    @apply bg-[#151821] border border-[#232938] rounded-2xl p-5 shadow-xl transition-all duration-300;
+  }
+  .zeno-card:hover {
+    @apply border-[#333d52] shadow-cyan-950/20;
+  }
+
+  .zeno-glass {
+    @apply bg-[#151821]/80 backdrop-blur-xl border border-white/5 shadow-2xl;
+  }
+
+  .zeno-btn-primary {
+    @apply px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-medium rounded-xl shadow-lg shadow-cyan-500/20 active:scale-95 transition-all flex items-center justify-center gap-2;
+  }
+
+  .zeno-btn-secondary {
+    @apply px-4 py-2.5 bg-[#1f2533] hover:bg-[#283042] text-slate-200 border border-[#2e374a] font-medium rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2;
+  }
+
+  /* 16x2 LCD Dot Matrix styling */
+  .lcd-screen {
+    background: #1a2f23;
+    color: #39ff14;
+    text-shadow: 0 0 8px rgba(57, 255, 20, 0.6);
+    font-family: 'VT323', monospace;
+    letter-spacing: 2px;
+    box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8), 0 0 10px rgba(57, 255, 20, 0.15);
+  }
+
+  .lcd-screen-blue {
+    background: #001f3f;
+    color: #00f0ff;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+    font-family: 'VT323', monospace;
+    letter-spacing: 2px;
+    box-shadow: inset 0 0 16px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 240, 255, 0.15);
+  }
+}
