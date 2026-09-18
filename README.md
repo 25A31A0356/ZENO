@@ -1,12 +1,16 @@
 # ZENO — Physical AI Voice Assistant Control Center
 > *"Listen. Think. Respond."*
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-00f0ff?style=for-the-badge&logo=googlechrome&logoColor=white)](https://25A31A0356.github.io/ZENO/)
+
 [![Repository](https://img.shields.io/badge/GitHub-25A31A0356%2FZENO-181717?logo=github)](https://github.com/25A31A0356/ZENO)
 [![Status](https://img.shields.io/badge/Status-Online-10b981.svg)]()
 [![Frontend](https://img.shields.io/badge/Frontend-React%2018%20%7C%20TypeScript%20%7C%20Vite%20%7C%20Tailwind-38bdf8.svg)]()
 [![Backend](https://img.shields.io/badge/Backend-Node.js%20%7C%20Express%20%7C%20WebSocket-8b5cf6.svg)]()
 [![Hardware](https://img.shields.io/badge/Hardware-ESP32%20%7C%2016x2%20LCD%20%7C%20I2S-f59e0b.svg)]()
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)]()
+
+> 🌐 **Live Web Dashboard:** **[https://25A31A0356.github.io/ZENO/](https://25A31A0356.github.io/ZENO/)**
 
 ---
 
