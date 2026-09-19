@@ -56,23 +56,31 @@ export const DevicePage: React.FC = () => {
   const [isLocalMicTesting, setIsLocalMicTesting] = useState(false);
   const [localMicVuLevel, setLocalMicVuLevel] = useState(0);
 
+  // Status refs to prevent duplicate toast alerts
+  const prevMqttStatus = React.useRef<MqttConnectionStatus>('DISCONNECTED');
+  const prevEspOnline = React.useRef<boolean>(false);
+
   // --- MQTT EVENT LISTENERS ---
   useEffect(() => {
     const unsubStatus = mqttService.onStatusChange((status, error) => {
       setMqttStatus(status);
-      if (error) {
+      if (error && prevMqttStatus.current !== status) {
         showToast(error, 'error');
       }
-      if (status === 'CONNECTED') {
+      if (status === 'CONNECTED' && prevMqttStatus.current !== 'CONNECTED') {
         showToast('Connected to Cloud MQTT Broker!', 'success');
       }
+      prevMqttStatus.current = status;
     });
 
     const unsubTelemetry = mqttService.onTelemetry((telemetry) => {
       setEspMqttTelemetry(telemetry);
-      if (telemetry.online) {
+      if (telemetry.online && !prevEspOnline.current) {
         showToast(`ESP32 Online! IP: ${telemetry.ip || 'Connected'}`, 'success');
+      } else if (!telemetry.online && prevEspOnline.current) {
+        showToast('ESP32 went Offline', 'warning');
       }
+      prevEspOnline.current = telemetry.online;
     });
 
     const unsubMic = mqttService.onMic((data) => {
