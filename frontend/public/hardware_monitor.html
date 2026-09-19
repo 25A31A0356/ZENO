@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZENO - Hardware Monitor & Telemetry</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #080b12;
+      color: #f3f4f6;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    .container {
+      width: min(840px, 94%);
+      margin: 24px auto;
+      flex: 1;
+    }
+    .header { text-align: center; margin-bottom: 24px; }
+    .logo {
+      font-size: 36px;
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .subtitle { color: #94a3b8; font-size: 14px; margin-top: 4px; }
+    .nav-link {
+      display: inline-block;
+      margin-top: 8px;
+      color: #38bdf8;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .nav-link:hover { text-decoration: underline; }
+
+    .card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+    }
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .card h2 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status {
+      font-size: 13px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .online { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .offline { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .warning { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+
+    /* LCD Screen Simulator */
+    .lcd-frame {
+      background: #111827;
+      border: 3px solid #374151;
+      border-radius: 12px;
+      padding: 12px;
+      width: 320px;
+      margin: 12px auto;
+      box-shadow: inset 0 0 15px rgba(0,0,0,0.8);
+    }
+    .lcd {
+      background: #064e3b;
+      color: #a7f3d0;
+      border: 2px solid #065f46;
+      border-radius: 6px;
+      padding: 14px 16px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 19px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-shadow: 0 0 10px rgba(167, 243, 208, 0.6);
+    }
+    .lcd-line {
+      height: 26px;
+      white-space: nowrap;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Microphone VU Meter */
+    .meter {
+      width: 100%;
+      height: 24px;
+      background: #1e293b;
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 10px 0;
+      border: 1px solid #334155;
+    }
+    .meter-bar {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #10b981 0%, #38bdf8 60%, #f59e0b 85%, #ef4444 100%);
+      transition: width 0.12s ease-out;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #1e293b;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+    .row:last-child { border-bottom: none; }
+    .row span:last-child { color: #f1f5f9; font-weight: 600; }
+
+    /* Inputs & Buttons */
+    .input-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-top: 10px;
+    }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 12px; color: #94a3b8; font-weight: 600; }
+    input[type="text"], input[type="password"] {
+      background: #0b1120;
+      border: 1px solid #334155;
+      color: white;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+    input[type="text"]:focus, input[type="password"]:focus {
+      border-color: #38bdf8;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+      justify-content: center;
+    }
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      transition: all 0.2s;
+    }
+    button:hover:not(:disabled) { background: #1d4ed8; }
+    button:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    button.btn-secondary { background: #334155; color: #e2e8f0; }
+    button.btn-secondary:hover:not(:disabled) { background: #475569; }
+
+    /* Console logs */
+    .console-box {
+      background: #090d16;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #94a3b8;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🤖 ZENO CLOUD MONITOR</div>
+      <div class="subtitle">Listen. Think. Respond. — Live Hardware Telemetry & Test Suite</div>
+      <a href="./index.html" class="nav-link">← Return to Full ZENO Dashboard</a>
+    </div>
+
+    <!-- MQTT CONFIGURATION & CONNECTION STATUS -->
+    <div class="card">
+      <div class="card-header">
+        <h2>🌐 MQTT Cloud Broker Connection</h2>
+        <span id="connectionStatus" class="status warning">🟡 Disconnected</span>
+      </div>
+
+      <div class="input-grid">
+        <div class="form-group">
+          <label>Broker WebSocket URL (WSS)</label>
+          <input type="text" id="brokerUrl" value="wss://broker.emqx.io:8084/mqtt" placeholder="wss://cluster.s1.eu.hivemq.cloud:8884/mqtt">
+        </div>
+        <div class="form-group">
+          <label>Device ID</label>
+          <input type="text" id="deviceId" value="001" placeholder="001">
+        </div>
+        <div class="form-group">
+          <label>Username (Optional)</label>
+          <input type="text" id="username" placeholder="zeno_web">
+        </div>
+        <div class="form-group">
+          <label>Password (Optional)</label>
+          <input type="password" id="password" placeholder="••••••••">
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button id="btnConnect" onclick="connectMQTT()">Connect to Broker</button>
+        <button id="btnDisconnect" class="btn-secondary" onclick="disconnectMQTT()" disabled>Disconnect</button>
+      </div>
+    </div>
+
+    <!-- ESP32 STATUS -->
+    <div class="card">
+      <div class="card-header">
+        <h2>⚡ ESP32 Hardware Core</h2>
+        <span id="espStatus" class="status offline">🔴 OFFLINE</span>
+      </div>
+      <div class="row"><span>Wi-Fi Connection</span><span id="wifiStatus">--</span></div>
+      <div class="row"><span>Local IP Address</span><span id="ipAddress">--</span></div>
+      <div class="row"><span>Current State</span><span id="zenoState">IDLE</span></div>
+    </div>
+
+    <!-- 16x2 LCD DISPLAY -->
+    <div class="card">
+      <div class="card-header">
+        <h2>🖥️ 16x2 I2C LCD Display</h2>
+        <span id="lcdStatus" class="status offline">🔴 WAITING</span>
+      </div>
+      
+      <div class="lcd-frame">
+        <div class="lcd">
+          <div id="lcdLine1" class="lcd-line">ZENO</div>
+          <div id="lcdLine2" class="lcd-line">READY</div>
+        </div>
+      </div>
+
+      <div class="input-grid" style="max-width: 500px; margin: 0 auto;">
+        <div class="form-group">
+          <label>Line 1 (Max 16 Chars)</label>
+          <input type="text" id="customL1" maxlength="16" value="HELLO FROM WEB">
+        </div>
+        <div class="form-group">
+          <label>Line 2 (Max 16 Chars)</label>
+          <input type="text" id="customL2" maxlength="16" value="ZENO IS ONLINE">
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button id="btnSendLcd" onclick="sendCustomLcd()" disabled>Send to LCD</button>
+        <button id="btnTestLcd" class="btn-secondary" onclick="sendCommand('LCD_TEST')" disabled>Run LCD Test Preset</button>
+      </div>
+    </div>
+
+    <!-- MICROPHONE VU METER -->
+    <div class="card">
+      <div class="card-header">
+        <h2>🎤 Microphone Live Telemetry (GPIO 34)</h2>
+        <span id="micStatus" class="status offline">🔴 NO SIGNAL</span>
+      </div>
+      <div class="meter">
+        <div id="micBar" class="meter-bar"></div>
+      </div>
+      <div class="row">
+        <span>Sound Intensity Level</span>
+        <span id="micValue">0% (ADC: 0)</span>
+      </div>
+      <div class="btn-row">
+        <button id="btnTestMic" class="btn-secondary" onclick="sendCommand('MIC_TEST')" disabled>Trigger Mic Sample Test</button>
+      </div>
+    </div>
+
+    <!-- LIVE CONSOLE -->
+    <div class="card">
+      <h2>📟 Live MQTT Topic Activity</h2>
+      <div id="consoleLog" class="console-box" style="margin-top: 10px;">
+        <div>[System] Ready. Enter your broker credentials and click Connect.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MQTT.js library -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script>
+    let client = null;
+    let lastMessageTime = 0;
+
+    const connectionStatus = document.getElementById("connectionStatus");
+    const espStatus = document.getElementById("espStatus");
+    const wifiStatus = document.getElementById("wifiStatus");
+    const ipAddress = document.getElementById("ipAddress");
+    const zenoState = document.getElementById("zenoState");
+    const lcdStatus = document.getElementById("lcdStatus");
+    const lcdLine1 = document.getElementById("lcdLine1");
+    const lcdLine2 = document.getElementById("lcdLine2");
+    const micStatus = document.getElementById("micStatus");
+    const micBar = document.getElementById("micBar");
+    const micValue = document.getElementById("micValue");
+    const consoleLog = document.getElementById("consoleLog");
+
+    const btnConnect = document.getElementById("btnConnect");
+    const btnDisconnect = document.getElementById("btnDisconnect");
+    const btnSendLcd = document.getElementById("btnSendLcd");
+    const btnTestLcd = document.getElementById("btnTestLcd");
+    const btnTestMic = document.getElementById("btnTestMic");
+
+    // Load saved config
+    try {
+      const saved = localStorage.getItem("zeno_monitor_config");
+      if (saved) {
+        const c = JSON.parse(saved);
+        if (c.brokerUrl) document.getElementById("brokerUrl").value = c.brokerUrl;
+        if (c.deviceId) document.getElementById("deviceId").value = c.deviceId;
+        if (c.username) document.getElementById("username").value = c.username;
+        if (c.password) document.getElementById("password").value = c.password;
+      }
+    } catch(e) {}
+
+    function log(msg) {
+      const line = document.createElement("div");
+      line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      consoleLog.appendChild(line);
+      consoleLog.scrollTop = consoleLog.scrollHeight;
+    }
+
+    function connectMQTT() {
+      const brokerUrl = document.getElementById("brokerUrl").value.trim();
+      const deviceId = document.getElementById("deviceId").value.trim() || "001";
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      localStorage.setItem("zeno_monitor_config", JSON.stringify({ brokerUrl, deviceId, username, password }));
+
+      connectionStatus.textContent = "🟡 Connecting...";
+      connectionStatus.className = "status warning";
+      btnConnect.disabled = true;
+
+      const clientId = "zeno_mon_" + Math.random().toString(16).substr(2, 8);
+      const opts = { clientId, clean: true, reconnectPeriod: 4000 };
+      if (username) opts.username = username;
+      if (password) opts.password = password;
+
+      try {
+        if (client) client.end(true);
+        client = mqtt.connect(brokerUrl, opts);
+
+        client.on("connect", () => {
+          connectionStatus.textContent = "🟢 CONNECTED";
+          connectionStatus.className = "status online";
+          btnConnect.disabled = true;
+          btnDisconnect.disabled = false;
+          btnSendLcd.disabled = false;
+          btnTestLcd.disabled = false;
+          btnTestMic.disabled = false;
+
+          log(`Connected to broker: ${brokerUrl}`);
+
+          const topics = [
+            `zeno/${deviceId}/status`,
+            `zeno/${deviceId}/mic`,
+            `zeno/${deviceId}/lcd`,
+            `zeno/${deviceId}/state`
+          ];
+          client.subscribe(topics, (err) => {
+            if (!err) log(`Subscribed to device topics (${deviceId})`);
+          });
+        });
+
+        client.on("error", (err) => {
+          connectionStatus.textContent = "🔴 ERROR";
+          connectionStatus.className = "status offline";
+          log(`Error: ${err.message || err}`);
+        });
+
+        client.on("close", () => {
+          if (btnDisconnect.disabled === false) {
+            connectionStatus.textContent = "🟡 RECONNECTING...";
+            connectionStatus.className = "status warning";
+          }
+        });
+
+        client.on("message", (topic, payload) => {
+          const text = payload.toString();
+          lastMessageTime = Date.now();
+
+          if (topic.endsWith("/status")) {
+            try {
+              const d = JSON.parse(text);
+              if (d.online) {
+                espStatus.textContent = "🟢 ONLINE";
+                espStatus.className = "status online";
+                wifiStatus.textContent = d.wifi ? "Connected" : "Disconnected";
+                ipAddress.textContent = d.ip || "--";
+              } else {
+                setDeviceOffline();
+              }
+            } catch(e) {}
+          } else if (topic.endsWith("/mic")) {
+            try {
+              const d = JSON.parse(text);
+              micValue.textContent = `${d.percent}% (ADC: ${d.raw})`;
+              micBar.style.width = `${d.percent}%`;
+              micStatus.textContent = "🟢 ACTIVE";
+              micStatus.className = "status online";
+            } catch(e) {}
+          } else if (topic.endsWith("/lcd")) {
+            try {
+              const d = JSON.parse(text);
+              lcdLine1.textContent = d.line1 || "";
+              lcdLine2.textContent = d.line2 || "";
+              lcdStatus.textContent = d.ok ? "🟢 ACTIVE" : "🔴 ERROR";
+              lcdStatus.className = d.ok ? "status online" : "status offline";
+            } catch(e) {}
+          } else if (topic.endsWith("/state")) {
+            zenoState.textContent = text;
+          }
+        });
+      } catch(e) {
+        log(`Setup error: ${e.message}`);
+        btnConnect.disabled = false;
+      }
+    }
+
+    function disconnectMQTT() {
+      if (client) {
+        client.end(true);
+        client = null;
+      }
+      connectionStatus.textContent = "🟡 Disconnected";
+      connectionStatus.className = "status warning";
+      btnConnect.disabled = false;
+      btnDisconnect.disabled = true;
+      btnSendLcd.disabled = true;
+      btnTestLcd.disabled = true;
+      btnTestMic.disabled = true;
+      setDeviceOffline();
+      log("Disconnected from broker.");
+    }
+
+    function sendCommand(cmd) {
+      if (!client || !client.connected) return;
+      const deviceId = document.getElementById("deviceId").value.trim() || "001";
+      client.publish(`zeno/${deviceId}/command`, cmd);
+      log(`Sent command: ${cmd}`);
+    }
+
+    function sendCustomLcd() {
+      const l1 = document.getElementById("customL1").value;
+      const l2 = document.getElementById("customL2").value;
+      sendCommand(`LCD|${l1}|${l2}`);
+    }
+
+    function setDeviceOffline() {
+      espStatus.textContent = "🔴 OFFLINE";
+      espStatus.className = "status offline";
+      micStatus.textContent = "🔴 NO SIGNAL";
+      micStatus.className = "status offline";
+      micBar.style.width = "0%";
+    }
+
+    setInterval(() => {
+      if (lastMessageTime > 0 && Date.now() - lastMessageTime > 16000) {
+        setDeviceOffline();
+      }
+    }, 5000);
+  </script>
+</body>
+</html>
