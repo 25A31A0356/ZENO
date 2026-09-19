@@ -10,11 +10,11 @@
 #define WIFI_SSID         "OnePlus Nord"
 #define WIFI_PASSWORD     "123456789"
 
-// --- 2. GLOBAL CLOUD MQTT BROKER CONFIGURATION ---
-#define MQTT_SERVER       "broker.emqx.io"
-#define MQTT_PORT         1883
-#define MQTT_USERNAME     ""
-#define MQTT_PASSWORD     ""
+// --- 2. VERIFIED HIVEMQ CLOUD BROKER (FROM YOUR SCREENSHOT) ---
+#define MQTT_SERVER       "2a44315fb0954566911359504d367ddf.s1.eu.hivemq.cloud"
+#define MQTT_PORT         8883
+#define MQTT_USERNAME     "zeno_user"
+#define MQTT_PASSWORD     "zeno_user"
 #define DEVICE_ID         "001"
 
 // --- 3. HARDWARE PIN DEFINITIONS (ESP32) ---

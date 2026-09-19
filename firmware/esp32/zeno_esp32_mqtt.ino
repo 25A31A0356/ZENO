@@ -1,24 +1,27 @@
 /**
  * =========================================================================
- * ZENO PHYSICAL AI VOICE ASSISTANT - ESP32 FIRMWARE (EMQX CLOUD MQTT)
+ * ZENO PHYSICAL AI VOICE ASSISTANT - ESP32 FIRMWARE (HIVEMQ CLOUD TLS)
  * Tagline: "Listen. Think. Respond."
  * =========================================================================
  */
 
 #include <Arduino.h>
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <ArduinoJson.h>
 
-// --- 1. WI-FI & EMQX CLOUD CREDENTIALS ---
+// --- 1. VERIFIED HIVEMQ CLOUD & WI-FI DETAILS ---
 const char* WIFI_SSID     = "OnePlus Nord";
 const char* WIFI_PASSWORD = "123456789";
 
-// Fast Global Cloud MQTT Broker (Zero TLS Issues, Instant Connect)
-const char* MQTT_SERVER   = "broker.emqx.io";
-const int   MQTT_PORT     = 1883;
+// Verified Host from your HiveMQ Console Screenshot:
+const char* MQTT_SERVER   = "2a44315fb0954566911359504d367ddf.s1.eu.hivemq.cloud";
+const int   MQTT_PORT     = 8883;                    // HiveMQ TLS Secure Port
+const char* MQTT_USERNAME = "zeno_user";
+const char* MQTT_PASSWORD = "zeno_user";
 
 const char* DEVICE_ID     = "001";
 
@@ -26,10 +29,10 @@ const char* DEVICE_ID     = "001";
 #define LCD_SDA_PIN 21
 #define LCD_SCL_PIN 22
 #define MIC_ADC_PIN 34
-#define LCD_ADDRESS 0x27   // Commonly 0x27 or 0x3F
+#define LCD_ADDRESS 0x27   // Commonly 0x27 (or 0x3F)
 
 LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2);
-WiFiClient espClient;
+WiFiClientSecure espClient;
 PubSubClient mqtt(espClient);
 
 // MQTT Topics
@@ -98,7 +101,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     command += (char)payload[i];
   }
   command.trim();
-  Serial.println("[MQTT RX] Command: " + command);
+  Serial.println("[MQTT RX] Received: " + command);
 
   if (command == "LCD_TEST") {
     showLCD("ZENO LCD TEST", "WORKING OK");
@@ -153,7 +156,7 @@ void connectWiFi() {
     Serial.println("\n[Wi-Fi] Connected! IP: " + WiFi.localIP().toString());
     showLCD("ZENO", "Wi-Fi Connected");
   } else {
-    Serial.println("\n[Wi-Fi] Connection failed. Will retry...");
+    Serial.println("\n[Wi-Fi] Connection failed. Retrying...");
     showLCD("ZENO", "Wi-Fi Failed");
   }
 }
@@ -162,13 +165,13 @@ void connectMQTT() {
   if (WiFi.status() != WL_CONNECTED) return;
 
   while (!mqtt.connected()) {
-    Serial.print("[MQTT] Connecting to broker... ");
+    Serial.print("[MQTT TLS] Connecting to HiveMQ Cloud... ");
 
     String clientId = "ZENO_ESP32_" + String(DEVICE_ID) + "_" + String(random(0xffff), HEX);
     const char* willTopic = TOPIC_STATUS.c_str();
     const char* willMsg = "{\"online\":false,\"wifi\":false}";
 
-    if (mqtt.connect(clientId.c_str(), willTopic, 1, true, willMsg)) {
+    if (mqtt.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD, willTopic, 1, true, willMsg)) {
       Serial.println("CONNECTED!");
       mqtt.subscribe(TOPIC_COMMAND.c_str());
       
@@ -179,8 +182,8 @@ void connectMQTT() {
     } else {
       Serial.print("FAILED (rc=");
       Serial.print(mqtt.state());
-      Serial.println("). Retrying in 3s...");
-      delay(3000);
+      Serial.println("). Retrying in 4s...");
+      delay(4000);
     }
   }
 }
@@ -200,10 +203,16 @@ void setup() {
   // Connect to Wi-Fi
   connectWiFi();
 
+  // TLS handshake configuration
+  espClient.setInsecure();
+  espClient.setHandshakeTimeout(30);
+
   // Setup MQTT Client
   mqtt.setServer(MQTT_SERVER, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
   mqtt.setBufferSize(512);
+  mqtt.setKeepAlive(60);
+  mqtt.setSocketTimeout(30);
 
   connectMQTT();
 }
@@ -218,8 +227,8 @@ void loop() {
   }
   mqtt.loop();
 
-  // Send sound level telemetry every 150ms
-  if (millis() - lastMicTime >= 150) {
+  // Send sound level telemetry every 200ms
+  if (millis() - lastMicTime >= 200) {
     lastMicTime = millis();
     publishMic();
   }
