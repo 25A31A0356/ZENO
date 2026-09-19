@@ -31,8 +31,8 @@ const STORAGE_KEY = 'zeno_mqtt_config';
 
 const DEFAULT_CONFIG: MqttConfig = {
   brokerUrl: 'wss://2a44315fb0954566911359504d367ddf.s1.eu.hivemq.cloud:8884/mqtt',
-  username: '',
-  password: '',
+  username: 'zeno_user',
+  password: '123456789',
   deviceId: '001',
 };
 

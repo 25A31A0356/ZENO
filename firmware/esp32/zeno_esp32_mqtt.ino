@@ -1,37 +1,36 @@
 /**
  * =========================================================================
- * ZENO PHYSICAL AI VOICE ASSISTANT - ESP32 FIRMWARE (MQTT CLOUD SECURE)
+ * ZENO PHYSICAL AI VOICE ASSISTANT - ESP32 FIRMWARE (HIVEMQ CLOUD TLS)
  * Tagline: "Listen. Think. Respond."
- * =========================================================================
- * 
- * Supports cloud connectivity to GitHub Pages via MQTT TLS (Port 8883).
- *
- * Hardware Components:
- * - ESP32 Dev Module
- * - 16x2 I2C LCD Display (PCF8574 Backpack, SDA: GPIO 21, SCL: GPIO 22)
- * - Analog Microphone (GPIO 34) or I2S INMP441 Microphone
- * - I2S DAC Audio Amplifier (MAX98357A)
- * - 3.7V Li-ion Battery Voltage Divider
- *
- * Arduino IDE / PlatformIO Libraries Needed:
- * - WiFi & WiFiClientSecure (Built-in to ESP32 core)
- * - PubSubClient by Nick O'Leary
- * - LiquidCrystal_I2C by Frank de Brabander or Marco Schwartz
- * - ArduinoJson by Benoit Blanchon (v6 or v7)
  * =========================================================================
  */
 
-#include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <ArduinoJson.h>
-#include "config.h"
 
-// --- GLOBAL OBJECTS & STATE ---
-LiquidCrystal_I2C lcd(LCD_I2C_ADDR, LCD_COLS, LCD_ROWS);
+// --- 1. WI-FI & HIVEMQ CLOUD CREDENTIALS ---
+const char* WIFI_SSID     = "OnePlus Nord";
+const char* WIFI_PASSWORD = "123456789";
+
+// HiveMQ Cloud Server from your console:
+const char* MQTT_SERVER   = "2a44315fb0954566911359504d367ddf.s1.eu.hivemq.cloud";
+const int   MQTT_PORT     = 8883;                    // HiveMQ TLS Port
+const char* MQTT_USERNAME = "zeno_user";
+const char* MQTT_PASSWORD = "123456789";
+
+const char* DEVICE_ID     = "001";
+
+// --- 2. HARDWARE PINS ---
+#define LCD_SDA_PIN 21
+#define LCD_SCL_PIN 22
+#define MIC_ADC_PIN 34
+#define LCD_ADDRESS 0x27   // Commonly 0x27 (or 0x3F)
+
+LiquidCrystal_I2C lcd(LCD_ADDRESS, 16, 2);
 WiFiClientSecure espClient;
 PubSubClient mqtt(espClient);
 
@@ -42,18 +41,10 @@ String TOPIC_LCD     = "zeno/" + String(DEVICE_ID) + "/lcd";
 String TOPIC_STATE   = "zeno/" + String(DEVICE_ID) + "/state";
 String TOPIC_COMMAND = "zeno/" + String(DEVICE_ID) + "/command";
 
-// Telemetry & Timing timers
-unsigned long lastMicRead = 0;
-unsigned long lastStatusPing = 0;
-unsigned long stateStartTime = 0;
-String currentLcdL1 = "ZENO";
-String currentLcdL2 = "Starting...";
+unsigned long lastMicTime = 0;
+unsigned long lastStatusTime = 0;
 
-// --- 1. DISPLAY DRIVER ---
-void updateLcd(const String& line1, const String& line2) {
-  currentLcdL1 = line1;
-  currentLcdL2 = line2;
-  
+void showLCD(String line1, String line2) {
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print(line1.substring(0, 16));
@@ -61,7 +52,7 @@ void updateLcd(const String& line1, const String& line2) {
   lcd.print(line2.substring(0, 16));
 }
 
-void sendLCDStatus(String line1, String line2, bool ok) {
+void publishLcdStatus(String line1, String line2, bool ok) {
   StaticJsonDocument<256> doc;
   doc["ok"] = ok;
   doc["line1"] = line1;
@@ -72,12 +63,11 @@ void sendLCDStatus(String line1, String line2, bool ok) {
   mqtt.publish(TOPIC_LCD.c_str(), buffer, true);
 }
 
-void sendState(String state) {
+void publishState(String state) {
   mqtt.publish(TOPIC_STATE.c_str(), state.c_str(), true);
 }
 
-// --- 2. TELEMETRY & SENSORS ---
-void sendStatus() {
+void publishStatus() {
   StaticJsonDocument<256> doc;
   doc["online"] = true;
   doc["wifi"] = (WiFi.status() == WL_CONNECTED);
@@ -90,7 +80,7 @@ void sendStatus() {
   mqtt.publish(TOPIC_STATUS.c_str(), buffer, true);
 }
 
-void sendMicLevel() {
+void publishMic() {
   int raw = analogRead(MIC_ADC_PIN);
   int percent = map(raw, 0, 4095, 0, 100);
   percent = constrain(percent, 0, 100);
@@ -104,60 +94,52 @@ void sendMicLevel() {
   mqtt.publish(TOPIC_MIC.c_str(), buffer);
 }
 
-// --- 3. MQTT INCOMING COMMAND RECEIVER ---
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  String message = "";
+  String command = "";
   for (unsigned int i = 0; i < length; i++) {
-    message += (char)payload[i];
+    command += (char)payload[i];
   }
-  message.trim();
-  Serial.print("[MQTT RX] ");
-  Serial.print(topic);
-  Serial.print(" -> ");
-  Serial.println(message);
+  command.trim();
+  Serial.println("[MQTT RX] Command: " + command);
 
-  if (String(topic) == TOPIC_COMMAND) {
-    if (message == "LCD_TEST") {
-      updateLcd("ZENO LCD TEST", "WORKING OK");
-      sendLCDStatus("ZENO LCD TEST", "WORKING OK", true);
-      sendState("LCD_TEST_RUNNING");
-      delay(2000);
-      updateLcd("ZENO", "READY");
-      sendLCDStatus("ZENO", "READY", true);
-      sendState("IDLE");
-    } 
-    else if (message == "MIC_TEST") {
-      sendState("MIC_TEST_RUNNING");
-      for (int i = 0; i < 5; i++) {
-        sendMicLevel();
-        delay(100);
-      }
-      sendState("IDLE");
+  if (command == "LCD_TEST") {
+    showLCD("ZENO LCD TEST", "WORKING OK");
+    publishLcdStatus("ZENO LCD TEST", "WORKING OK", true);
+    publishState("LCD_TEST_RUNNING");
+    delay(2000);
+    showLCD("ZENO", "READY");
+    publishLcdStatus("ZENO", "READY", true);
+    publishState("IDLE");
+  } 
+  else if (command == "MIC_TEST") {
+    publishState("MIC_TEST_RUNNING");
+    for (int i = 0; i < 6; i++) {
+      publishMic();
+      delay(80);
     }
-    else if (message.startsWith("LCD|")) {
-      // Format: LCD|Line 1|Line 2
-      int firstPipe = message.indexOf('|');
-      int secondPipe = message.indexOf('|', firstPipe + 1);
-      if (secondPipe > firstPipe) {
-        String l1 = message.substring(firstPipe + 1, secondPipe);
-        String l2 = message.substring(secondPipe + 1);
-        updateLcd(l1, l2);
-        sendLCDStatus(l1, l2, true);
-      }
+    publishState("IDLE");
+  }
+  else if (command.startsWith("LCD|")) {
+    int firstPipe = command.indexOf('|');
+    int secondPipe = command.indexOf('|', firstPipe + 1);
+    if (secondPipe > firstPipe) {
+      String l1 = command.substring(firstPipe + 1, secondPipe);
+      String l2 = command.substring(secondPipe + 1);
+      showLCD(l1, l2);
+      publishLcdStatus(l1, l2, true);
     }
-    else if (message == "RESTART") {
-      updateLcd("ZENO REBOOT", "PLEASE WAIT");
-      delay(1000);
-      ESP.restart();
-    }
+  }
+  else if (command == "RESTART") {
+    showLCD("ZENO REBOOT", "PLEASE WAIT");
+    delay(1000);
+    ESP.restart();
   }
 }
 
-// --- 4. NETWORK & MQTT CONNECTIONS ---
 void connectWiFi() {
   Serial.print("\n[Wi-Fi] Connecting to: ");
   Serial.println(WIFI_SSID);
-  updateLcd("ZENO", "Connecting Wi-Fi");
+  showLCD("ZENO", "Connecting Wi-Fi");
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
@@ -170,13 +152,11 @@ void connectWiFi() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\n[Wi-Fi] Connected!");
-    Serial.print("[Wi-Fi] IP Address: ");
-    Serial.println(WiFi.localIP());
-    updateLcd("ZENO", "Wi-Fi Connected");
+    Serial.println("\n[Wi-Fi] Connected! IP: " + WiFi.localIP().toString());
+    showLCD("ZENO", "Wi-Fi Connected");
   } else {
-    Serial.println("\n[Wi-Fi] Connection failed. Retrying in loop...");
-    updateLcd("ZENO", "Wi-Fi Error");
+    Serial.println("\n[Wi-Fi] Connection failed. Will retry...");
+    showLCD("ZENO", "Wi-Fi Failed");
   }
 }
 
@@ -184,71 +164,51 @@ void connectMQTT() {
   if (WiFi.status() != WL_CONNECTED) return;
 
   while (!mqtt.connected()) {
-    Serial.print("[MQTT TLS] Connecting to broker ");
-    Serial.print(MQTT_SERVER);
-    Serial.print(":");
-    Serial.print(MQTT_PORT);
-    Serial.print("... ");
+    Serial.print("[MQTT TLS] Connecting to HiveMQ Cloud... ");
 
     String clientId = "ZENO_ESP32_" + String(DEVICE_ID) + "_" + String(random(0xffff), HEX);
-    
-    // Last will and testament
     const char* willTopic = TOPIC_STATUS.c_str();
-    const char* willMessage = "{\"online\":false,\"wifi\":false}";
+    const char* willMsg = "{\"online\":false,\"wifi\":false}";
 
-    bool ok = false;
-    if (strlen(MQTT_USERNAME) > 0) {
-      ok = mqtt.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD, willTopic, 1, true, willMessage);
-    } else {
-      ok = mqtt.connect(clientId.c_str(), willTopic, 1, true, willMessage);
-    }
-
-    if (ok) {
+    if (mqtt.connect(clientId.c_str(), MQTT_USERNAME, MQTT_PASSWORD, willTopic, 1, true, willMsg)) {
       Serial.println("CONNECTED!");
       mqtt.subscribe(TOPIC_COMMAND.c_str());
       
-      sendStatus();
-      sendState("IDLE");
-      sendLCDStatus("ZENO", "READY", true);
-      updateLcd("ZENO", "ONLINE (MQTT)");
+      publishStatus();
+      publishState("IDLE");
+      publishLcdStatus("ZENO", "READY", true);
+      showLCD("ZENO", "ONLINE (MQTT)");
     } else {
       Serial.print("FAILED (rc=");
       Serial.print(mqtt.state());
       Serial.println("). Retrying in 4s...");
-      updateLcd("MQTT Retry...", String(mqtt.state()));
       delay(4000);
     }
   }
 }
 
-// --- SETUP ---
 void setup() {
   Serial.begin(115200);
-  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
-  // Initialize LCD
+  Wire.begin(LCD_SDA_PIN, LCD_SCL_PIN);
   lcd.init();
   lcd.backlight();
-  updateLcd("ZENO", "BOOTING...");
+  showLCD("ZENO", "BOOTING...");
 
-  // Mic Pin
   pinMode(MIC_ADC_PIN, INPUT);
 
-  // Connect Wi-Fi
   connectWiFi();
 
-  // Allow TLS connection without static root CA cert for cloud brokers
+  // TLS handshake without static certificate upload
   espClient.setInsecure();
 
-  // MQTT Server Setup
   mqtt.setServer(MQTT_SERVER, MQTT_PORT);
   mqtt.setCallback(mqttCallback);
-  mqtt.setBufferSize(512); // Support larger JSON payloads
+  mqtt.setBufferSize(512);
 
   connectMQTT();
 }
 
-// --- MAIN LOOP ---
 void loop() {
   if (WiFi.status() != WL_CONNECTED) {
     connectWiFi();
@@ -259,15 +219,15 @@ void loop() {
   }
   mqtt.loop();
 
-  // Stream microphone readings every 150ms
-  if (millis() - lastMicRead >= 150) {
-    lastMicRead = millis();
-    sendMicLevel();
+  // Send sound level telemetry every 120ms
+  if (millis() - lastMicTime >= 120) {
+    lastMicTime = millis();
+    publishMic();
   }
 
-  // Periodic heartbeat every 5s
-  if (millis() - lastStatusPing >= 5000) {
-    lastStatusPing = millis();
-    sendStatus();
+  // Send heartbeat status every 5s
+  if (millis() - lastStatusTime >= 5000) {
+    lastStatusTime = millis();
+    publishStatus();
   }
 }

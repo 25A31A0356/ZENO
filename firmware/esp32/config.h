@@ -7,14 +7,14 @@
 // =========================================================================
 
 // --- 1. WI-FI NETWORK CREDENTIALS ---
-#define WIFI_SSID         "YOUR_WIFI_NAME"          // <-- Replace with your Wi-Fi name
-#define WIFI_PASSWORD     "YOUR_WIFI_PASSWORD"      // <-- Replace with your Wi-Fi password
+#define WIFI_SSID         "OnePlus Nord"
+#define WIFI_PASSWORD     "123456789"
 
 // --- 2. HIVEMQ CLOUD BROKER CONFIGURATION ---
 #define MQTT_SERVER       "2a44315fb0954566911359504d367ddf.s1.eu.hivemq.cloud"
-#define MQTT_PORT         8883                      // Standard TLS Port
-#define MQTT_USERNAME     "zeno_esp32"              // <-- Username created in HiveMQ Access Management
-#define MQTT_PASSWORD     "YOUR_PASSWORD"           // <-- Password created in HiveMQ Access Management
+#define MQTT_PORT         8883
+#define MQTT_USERNAME     "zeno_user"
+#define MQTT_PASSWORD     "123456789"
 #define DEVICE_ID         "001"
 
 // --- 3. HARDWARE PIN DEFINITIONS (ESP32) ---
@@ -26,7 +26,7 @@
 #define I2C_SDA_PIN       21
 #define I2C_SCL_PIN       22
 
-// Microphone (Analog ADC or I2S)
+// Microphone (Analog ADC)
 #define MIC_ADC_PIN       34      // Analog Microphone OUT / AO connected to GPIO 34
 
 // Push Button
